@@ -12,6 +12,7 @@ import type {
 } from '../types'
 import type { IStore } from '../store/interface'
 import { makeKernelNodes } from './bootstrap'
+import { createLogEntry } from '../log/log-entry'
 
 type SaveRevisionOptions = {
   cause: LogEntryCause
@@ -96,15 +97,13 @@ export class RevisionStore {
     const branch = world.branches[branchName]
     if (!branch) throw new Error(`Branch "${branchName}" not found in world "${worldName}"`)
 
-    const logEntry: LogEntry = {
-      id: randomUUID(),
+    const logEntry: LogEntry = createLogEntry({
       revisionId: revision.id,
       parentRevisionId: revision.parentRevisionId,
-      timestamp: new Date().toISOString(),
       cause: opts.cause,
       effects: opts.effects,
       appliedOps: opts.appliedOps,
-    }
+    })
 
     const updated: World = {
       ...world,
@@ -117,5 +116,12 @@ export class RevisionStore {
     }
 
     await this.store.saveWorld(updated)
+  }
+
+  async getLogEntries(worldName: WorldName, _branchName: BranchName): Promise<LogEntry[]> {
+    const world = await this.store.loadWorld(worldName)
+    if (!world) return []
+    // Log is stored flat on the world for now; branch filtering is a future concern
+    return world.log
   }
 }
