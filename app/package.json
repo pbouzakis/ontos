@@ -1,0 +1,21 @@
+{
+  "name": "@ontos/app",
+  "version": "0.0.1",
+  "private": true,
+  "bin": {
+    "ontos": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/cli/index.ts",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@ontos/kernel": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.16.0",
+    "vitest": "^2.0.0"
+  }
+}

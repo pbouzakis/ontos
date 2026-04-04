@@ -1,0 +1,15 @@
+{
+  "name": "@ontos/kernel",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
+  }
+}
