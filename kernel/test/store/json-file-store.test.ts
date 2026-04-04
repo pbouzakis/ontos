@@ -10,7 +10,14 @@ function makeWorld(name: string): World {
     name,
     createdAt: '2026-01-01T00:00:00.000Z',
     branches: {},
-    revisions: {},
+    baseline: {
+      id: 'baseline-1',
+      worldName: name,
+      branchName: 'main',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      nodes: {},
+      edges: {},
+    },
     log: [],
   }
 }

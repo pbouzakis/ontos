@@ -103,9 +103,11 @@ export type LogEntry = {
   id: string
   revisionId: RevisionId
   parentRevisionId?: RevisionId
+  branchName: BranchName
   timestamp: string
   cause: LogEntryCause
   effects: Effect[]
+  /** Ops to replay when reconstructing state from the baseline. Must be complete and ordered. */
   appliedOps: WorldOp[]
 }
 
@@ -144,6 +146,8 @@ export type World = {
   name: WorldName
   createdAt: string
   branches: Record<BranchName, Branch>
-  revisions: Record<RevisionId, WorldRevision>
+  /** Genesis snapshot (or last squash baseline). Current state is derived by replaying log ops on top. */
+  baseline: WorldRevision
+  /** All log entries across branches, in insertion order. Each entry carries the ops needed for replay. */
   log: LogEntry[]
 }

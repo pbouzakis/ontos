@@ -10,9 +10,10 @@ import type { LogEntryCause } from '../../src/types'
 describe('createLogEntry', () => {
   it('creates a log entry with a unique id and timestamp', () => {
     const cause: LogEntryCause = { type: 'runtime', description: 'test' }
-    const entry = createLogEntry({ revisionId: 'rev-1', cause, effects: [], appliedOps: [] })
+    const entry = createLogEntry({ revisionId: 'rev-1', branchName: 'main', cause, effects: [], appliedOps: [] })
     expect(entry.id).toBeTruthy()
     expect(entry.revisionId).toBe('rev-1')
+    expect(entry.branchName).toBe('main')
     expect(entry.cause).toEqual(cause)
     expect(entry.effects).toEqual([])
     expect(entry.appliedOps).toEqual([])
@@ -24,6 +25,7 @@ describe('createLogEntry', () => {
     const entry = createLogEntry({
       revisionId: 'rev-2',
       parentRevisionId: 'rev-1',
+      branchName: 'main',
       cause,
       effects: [],
       appliedOps: [],
@@ -47,12 +49,8 @@ describe('RevisionStore.getLogEntries', () => {
 
   it('returns log entries in insertion order', async () => {
     await store.createWorld('w1')
-    const rev = await store.getCurrentRevision('w1', 'main')
-    if (!rev) throw new Error('no revision')
-
-    const newRev = { ...rev, id: 'rev-2', parentRevisionId: rev.id }
     const cause: LogEntryCause = { type: 'runtime', description: 'second entry' }
-    await store.saveRevision('w1', 'main', newRev, { cause, effects: [], appliedOps: [] })
+    await store.saveRevision('w1', 'main', { revisionId: 'rev-2', cause, effects: [], appliedOps: [] })
 
     const entries = await store.getLogEntries('w1', 'main')
     expect(entries.length).toBeGreaterThanOrEqual(2)
