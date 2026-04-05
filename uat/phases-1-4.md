@@ -3,9 +3,11 @@
 ## Setup
 
 ```bash
-pnpm build
+pnpm build    # required — builds packages/dist/ which pkg load depends on
 ontos repl --world uat1 --data-dir /tmp/ontos-uat
 ```
+
+> **Note:** The trait registry is in-memory only. `pkg load` must be re-run at the start of every REPL session. If you restart the REPL and skip `pkg load`, any `message send/preview` on a node with expressed traits will throw `"Trait not found"`.
 
 ---
 
@@ -16,6 +18,7 @@ ontos repl --world uat1 --data-dir /tmp/ontos-uat
 | 1 | `world show` | Shows world `uat1`, branch `main`, a revision ID |
 | 2 | `node list` | 3 kernel nodes: `world-root`, `system.log`, `system.registry` |
 | 3 | `exit` then restart REPL with same `--data-dir` | `node list` still shows the 3 nodes — persistence confirmed |
+| | _(continue in this restarted REPL session for all remaining steps)_ | |
 
 ---
 
