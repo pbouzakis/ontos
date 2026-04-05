@@ -3,6 +3,7 @@ import type {
   World,
   WorldName,
   BranchName,
+  Branch,
   WorldRevision,
   RevisionId,
   Effect,
@@ -132,6 +133,191 @@ export class RevisionStore {
     const world = await this.store.loadWorld(worldName)
     if (!world) return []
     return world.log.filter((e) => e.branchName === branchName)
+  }
+
+  /**
+   * Replay the branch log up to (and including) the given revisionId.
+   * Returns null if the revisionId is not found on this branch.
+   */
+  async getRevisionAt(
+    worldName: WorldName,
+    branchName: BranchName,
+    revisionId: RevisionId,
+  ): Promise<WorldRevision | null> {
+    const world = await this.store.loadWorld(worldName)
+    if (!world) return null
+
+    if (world.baseline.id === revisionId) return world.baseline
+
+    const branchEntries = world.log.filter((e) => e.branchName === branchName)
+    let current: WorldRevision = { ...world.baseline }
+
+    for (const entry of branchEntries) {
+      for (const op of entry.appliedOps) {
+        current = applyOp(op, current)
+      }
+      current = {
+        ...current,
+        id: entry.revisionId,
+        parentRevisionId: entry.parentRevisionId,
+        branchName,
+      }
+      if (entry.revisionId === revisionId) return current
+    }
+
+    return null
+  }
+
+  async listBranches(worldName: WorldName): Promise<Branch[]> {
+    const world = await this.store.loadWorld(worldName)
+    if (!world) return []
+    return Object.values(world.branches)
+  }
+
+  /**
+   * Fork a new branch from any revision on any existing branch.
+   * The new branch gets a single "fork baseline" log entry that materializes
+   * all ops from the source branch up to the fork point, so replay works
+   * without needing cross-branch awareness.
+   */
+  async forkBranch(
+    worldName: WorldName,
+    fromRevisionId: RevisionId,
+    newBranchName: BranchName,
+  ): Promise<Branch> {
+    const world = await this.store.loadWorld(worldName)
+    if (!world) throw new Error(`World "${worldName}" not found`)
+    if (world.branches[newBranchName]) {
+      throw new Error(`Branch "${newBranchName}" already exists in world "${worldName}"`)
+    }
+
+    // Collect all ops from whichever branch contains fromRevisionId
+    let sourceBranchName: BranchName | null = null
+    let accumulatedOps: WorldOp[] = []
+
+    if (world.baseline.id === fromRevisionId) {
+      // Fork from genesis — no ops needed
+      sourceBranchName = world.baseline.branchName
+    } else {
+      outer: for (const branchName of Object.keys(world.branches)) {
+        const entries = world.log.filter((e) => e.branchName === branchName)
+        const ops: WorldOp[] = []
+        for (const entry of entries) {
+          ops.push(...entry.appliedOps)
+          if (entry.revisionId === fromRevisionId) {
+            sourceBranchName = branchName
+            accumulatedOps = ops
+            break outer
+          }
+        }
+      }
+    }
+
+    if (sourceBranchName === null) {
+      throw new Error(`Revision "${fromRevisionId}" not found in any branch of world "${worldName}"`)
+    }
+
+    const now = new Date().toISOString()
+    const newBranch: Branch = {
+      name: newBranchName,
+      worldName,
+      headRevisionId: fromRevisionId,
+      createdAt: now,
+      forkedFromRevisionId: fromRevisionId,
+    }
+
+    // Materialize all accumulated ops into a single fork-baseline log entry
+    const forkEntry: LogEntry = createLogEntry({
+      revisionId: fromRevisionId,
+      branchName: newBranchName,
+      cause: {
+        type: 'runtime',
+        description: `fork from ${sourceBranchName}@${fromRevisionId.slice(0, 8)}`,
+      },
+      effects: [],
+      appliedOps: accumulatedOps,
+    })
+
+    const updated: World = {
+      ...world,
+      branches: { ...world.branches, [newBranchName]: newBranch },
+      log: [...world.log, forkEntry],
+    }
+
+    await this.store.saveWorld(updated)
+    return newBranch
+  }
+
+  /**
+   * Squash all log entries on the branch between (and including) fromRevId and toRevId
+   * into a single squash-marker entry. Entries before fromRevId and after toRevId are preserved.
+   * The combined ops of the squashed range are collapsed into the marker so replay still works.
+   */
+  async squashRevisions(
+    worldName: WorldName,
+    branchName: BranchName,
+    fromRevId: RevisionId,
+    toRevId: RevisionId,
+  ): Promise<void> {
+    const world = await this.store.loadWorld(worldName)
+    if (!world) throw new Error(`World "${worldName}" not found`)
+
+    const branchEntries = world.log.filter((e) => e.branchName === branchName)
+    const otherEntries = world.log.filter((e) => e.branchName !== branchName)
+
+    let inRange = false
+    let squashedOps: WorldOp[] = []
+    let squashedCount = 0
+    let foundTo = false
+    const before: LogEntry[] = []
+    const after: LogEntry[] = []
+
+    for (const entry of branchEntries) {
+      if (!inRange && entry.revisionId !== fromRevId) {
+        before.push(entry)
+        continue
+      }
+      if (!inRange) inRange = true
+
+      squashedOps.push(...entry.appliedOps)
+      squashedCount++
+
+      if (entry.revisionId === toRevId) {
+        foundTo = true
+        inRange = false
+        continue
+      }
+    }
+
+    // Entries we encounter after inRange turns off
+    let pastTo = false
+    for (const entry of branchEntries) {
+      if (!pastTo) {
+        if (entry.revisionId === toRevId) pastTo = true
+        continue
+      }
+      after.push(entry)
+    }
+
+    if (!foundTo) throw new Error(`Revision "${toRevId}" not found after "${fromRevId}" on branch "${branchName}"`)
+
+    const squashMarker: LogEntry = createLogEntry({
+      revisionId: toRevId,
+      branchName,
+      cause: {
+        type: 'runtime',
+        description: `squash ${squashedCount} revision(s) (${fromRevId.slice(0, 8)}..${toRevId.slice(0, 8)})`,
+      },
+      effects: [],
+      appliedOps: squashedOps,
+    })
+
+    const updated: World = {
+      ...world,
+      log: [...otherEntries, ...before, squashMarker, ...after],
+    }
+
+    await this.store.saveWorld(updated)
   }
 }
 

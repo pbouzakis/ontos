@@ -1,0 +1,3 @@
+// Module with no TraitDefinition exports — loadPackage should return []
+export const version = '1.0.0'
+export const description = 'empty package fixture'

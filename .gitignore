@@ -5,3 +5,5 @@ dist/
 .env.*
 *.json.bak
 worlds/
+.ontos-data/
+.claude/
