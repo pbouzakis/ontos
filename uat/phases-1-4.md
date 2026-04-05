@@ -64,7 +64,7 @@ ontos repl --world uat-srv --data-dir /tmp/ontos-uat
 | 21 | `pkg load packages/dist/index.js` | Loaded |
 | 22 | `node create --name "My Server" --kind Server --slug my-server` | Created |
 | 23 | `op apply express_trait --payload '{"nodeId":"<id>","trait":"server.lifecycle"}'` | Succeeded |
-| 24 | `message send my-server start_server` | Succeeds; produces `open_listener` effect |
+| 24 | `message send my-server start_server --payload '{"port":9000}'` | Succeeds; produces `open_listener` effect |
 | 25 | `runtime listeners` | Shows an active HTTP/TCP listener |
 | 26 | `message send my-server stop_server` | Succeeds |
 | 27 | `runtime listeners` | Empty |

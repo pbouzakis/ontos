@@ -57,6 +57,8 @@ export class RuntimeHost implements IRuntimeHost {
     }
     await new Promise<void>((resolve, reject) => {
       entry.server.close((err) => (err ? reject(err) : resolve()))
+      // Force-close open connections so close() resolves immediately (Node 18.2+)
+      ;(entry.server as unknown as { closeAllConnections?: () => void }).closeAllConnections?.()
     })
     this.listeners.delete(listenerId)
   }
