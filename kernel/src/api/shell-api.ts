@@ -198,6 +198,11 @@ export class OntosShellApi {
     op: WorldOp,
   ): Promise<ApplyOpResult> {
     const revision = await this._requireRevision(worldName, branch)
+    // Normalize express_trait/remove_trait to full URIs so storage is canonical
+    if (op.type === 'express_trait' || op.type === 'remove_trait') {
+      const resolved = this.registry.resolve(op.trait)
+      if (resolved) op = { ...op, trait: resolved.uri }
+    }
     const newRevision = applyOp(op, revision)
     const newRevisionId = randomUUID()
 

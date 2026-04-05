@@ -11,13 +11,26 @@ export class TraitRegistry {
   }
 
   get(uri: TraitUri): TraitDefinition {
-    const def = this.traits.get(uri)
+    const def = this.resolve(uri)
     if (!def) throw new Error(`Trait not found: ${uri}`)
     return def
   }
 
   has(uri: TraitUri): boolean {
-    return this.traits.has(uri)
+    return this.resolve(uri) !== null
+  }
+
+  /**
+   * Resolve a trait by exact URI or by the fragment portion (after `#`).
+   * Returns null if not found.
+   */
+  resolve(uriOrAlias: TraitUri): TraitDefinition | null {
+    if (this.traits.has(uriOrAlias)) return this.traits.get(uriOrAlias)!
+    for (const def of this.traits.values()) {
+      const fragment = def.uri.split('#')[1]
+      if (fragment === uriOrAlias) return def
+    }
+    return null
   }
 
   list(): TraitDefinition[] {
