@@ -1,6 +1,6 @@
 import type { ShellContext } from '../context.js'
 
-export function runtimeListeners(ctx: ShellContext): void {
+export function worldListeners(ctx: ShellContext): void {
   const listeners = ctx.host.listListeners()
   if (listeners.length === 0) {
     console.log('No active listeners.')

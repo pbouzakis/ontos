@@ -8,7 +8,7 @@ import { edgeList, edgeCreate, edgeRemove } from './commands/edge.js'
 import { messageSend, messagePreview } from './commands/message.js'
 import { opApply } from './commands/op.js'
 import { pkgList, pkgLoad, traitInspect } from './commands/pkg.js'
-import { runtimeListeners } from './commands/runtime.js'
+import { worldListeners } from './commands/runtime.js'
 
 export async function startRepl(ctx: ShellContext): Promise<void> {
   const isTTY = process.stdin.isTTY === true
@@ -85,7 +85,8 @@ async function dispatch(input: string, ctx: ShellContext): Promise<void> {
       else if (sub === 'diff') {
         if (!rest[0] || !rest[1]) { console.error('Usage: world diff <revA> <revB>'); break }
         await worldDiff(ctx, rest[0], rest[1])
-      } else unknown(input)
+      } else if (sub === 'listeners') worldListeners(ctx)
+      else unknown(input)
       break
 
     case 'branch':
@@ -172,7 +173,8 @@ async function dispatch(input: string, ctx: ShellContext): Promise<void> {
       break
 
     case 'runtime':
-      if (sub === 'listeners' || !sub) runtimeListeners(ctx)
+      // legacy alias — redirect to `world listeners`
+      if (sub === 'listeners' || !sub) worldListeners(ctx)
       else unknown(input)
       break
 
@@ -192,6 +194,7 @@ Available commands:
   world show                       — current world/branch/revision
   world history                    — log entries for this branch
   world diff <revA> <revB>         — diff two revisions
+  world listeners                  — list active TCP/HTTP listeners
 
   branch list                      — list branches
   branch fork <from> <name>        — fork a branch from a revision
@@ -218,7 +221,6 @@ Available commands:
 
   trait inspect <uri>              — inspect a trait definition
 
-  runtime listeners                — list active TCP/HTTP listeners
 
   help                             — show this help
   exit                             — quit
